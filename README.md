@@ -19,18 +19,18 @@
 ### 安装/删除/更新 软件
 
 ``` bash
-python run.py --device <device_id> --install <url或者apk文件>
-python run.py --device <device_id> --uninstall <url或者apk文件>
-python run.py --device <device_id> --update <url或者apk文件>
+python run.py install <url或者apk文件> --device <device_id>
+python run.py uninstall <url或者apk文件> --device <device_id>
+python run.py update <url或者apk文件>  --device <device_id>
 ```
 
 ### 修改设置
 
 ``` bash
-python run.py --device <device_id> --setting airplane_on
-python run.py --device <device_id> --setting airplane_off
-python run.py --device <device_id> --setting wifi_on
-python run.py --device <device_id> --setting wifi_off
+python run.py setting --operation airplane_on --device <device_id>
+python run.py setting --operation airplane_off --device <device_id>
+python run.py setting --operation wifi_on --device <device_id>
+python run.py setting --operation wifi_off --device <device_id>
 
 ... and so on
 ```
@@ -38,14 +38,14 @@ python run.py --device <device_id> --setting wifi_off
 ### 文件管理
 
 ``` bash
-python run.py --device <device_id> --upload <src_path_in_pc>,<dst_path_in_android>
-python run.py --device <device_id> --download <src_path_in_android>,<dst_path_in_pc>
+python run.py upload --device <device_id> --src <src_path_in_pc> --dst <dst_path_in_android>
+python run.py download --device <device_id> --src <src_path_in_android> --dst <dst_path_in_pc>
 ```
 
 ### 截图
 
 ``` bash
-python run.py --device <device_id> --screenshot <dst_path_in_pc>
+python run.py screenshot --dst <dst_path_in_pc> --device <device_id>
 ```
 
 ## More
