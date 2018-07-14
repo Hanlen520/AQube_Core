@@ -1,16 +1,14 @@
 # AndroidQube
 
-> 一个能够批量对android设备进行操作的软件
+[![Coverity Scan Build Status](https://img.shields.io/coverity/scan/16251.svg)](https://scan.coverity.com/projects/williamfzc-androidqube)
+
+> 一个能够批量对android设备进行操作的软件，基于Python3。
 
 ## 使用场景
 
 - 在多台设备连接到同一台电脑上时对他们进行批量操作。
 - 保持多台设备的配置一致。
 - 监控设备的连接状态。
-
-## 设计
-
-暂定使用python+Fire开发。
 
 ## 功能
 
@@ -32,7 +30,7 @@ python run.py setting --device 123456F --action wifi_on
 python run.py setting --device 123456F --action wifi_off
 ```
 
-### 文件管理
+### 文件管理（TODO)
 
 ``` bash
 python run.py upload --device 123456F --src <src_path_in_pc> --dst <dst_path_in_android>

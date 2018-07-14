@@ -1,28 +1,37 @@
 import fire
-import logging
 import inspect
 import subprocess
 import pprint
 import requests
 import os
 import shutil
+import logging
 import config as cf
 
+# init logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s || %(levelname)s || %(message)s',
-    filemode='a',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
     filename=cf.LOG_FILE,
+    filemode='a',
 )
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+logging.getLogger('').addHandler(ch)
 
 
 def download_apk(url, dst):
+    logging.info('start download: ' + url)
     res = requests.get(url)
     res.raise_for_status()
     apk_file = open(dst, 'wb')
     for chunk in res.iter_content(100000):
         apk_file.write(chunk)
     apk_file.close()
+    logging.info('download finished')
 
 
 def desc_func():
@@ -40,14 +49,22 @@ class ADB(object):
 
     def __call__(self, *args, **_):
         exec_cmd = [*self.adb_exec, *args]
-        exec_result = subprocess.run(exec_cmd, stdout=subprocess.PIPE).stdout
-        logging.info('{} => {}'.format(exec_cmd, exec_result))
+        completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
+        exec_result = completed_process.stdout
+        exec_err = completed_process.stderr
+        if exec_err:
+            raise RuntimeError(exec_err.decode())
+        logging.debug('{} => {}'.format(exec_cmd, exec_result))
         return exec_result.decode()
 
     def shell(self, *args, **_):
         exec_cmd = [*self.adb_exec, 'shell', *args]
-        exec_result = subprocess.run(exec_cmd, stdout=subprocess.PIPE).stdout
-        logging.info('{} => {}'.format(exec_cmd, exec_result))
+        completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
+        exec_result = completed_process.stdout
+        exec_err = completed_process.stderr
+        if exec_err:
+            raise RuntimeError(exec_err.decode())
+        logging.debug('{} => {}'.format(exec_cmd, exec_result))
         return exec_result.decode()
 
 
@@ -63,7 +80,7 @@ class Device(object):
     def is_connected(self, device_id):
         adb_devices_result = self.adb('devices')
         result = [i for i in adb_devices_result.split('\n') if device_id in i and 'device' in i]
-        logging.info('Device {} is {}.'.format(
+        logging.debug('Device {} is {}.'.format(
             device_id,
             'connected' if result else 'disconnected'
         ))
@@ -187,7 +204,7 @@ class CmdHandler(object):
 
     # 获取可用设备
     def get_devices(self):
-        print(DeviceHandler.update_device_status())
+        DeviceHandler.update_device_status()
 
 
 if __name__ == '__main__':
