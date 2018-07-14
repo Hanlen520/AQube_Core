@@ -11,6 +11,8 @@ import config as cf
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s || %(levelname)s || %(message)s',
+    filemode='a',
+    filename=cf.LOG_FILE,
 )
 
 
@@ -36,7 +38,7 @@ class ADB(object):
             adb_exec += ['-s', device_id]
         self.adb_exec = adb_exec
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **_):
         exec_cmd = [*self.adb_exec, *args]
         exec_result = subprocess.run(exec_cmd, stdout=subprocess.PIPE).stdout
         logging.info('{} => {}'.format(exec_cmd, exec_result))
@@ -56,7 +58,7 @@ class Device(object):
         self.status = self.is_connected(device_id)
 
     def __repr__(self):
-        return '< Device id={} connected={} >'.format(self.device_id, self.status)
+        return 'Device <id={} connected={}>'.format(self.device_id, self.status)
 
     def is_connected(self, device_id):
         adb_devices_result = self.adb('devices')
@@ -70,6 +72,23 @@ class Device(object):
 
 class DeviceHandler(object):
     device_dict = dict()
+    action_dict = {
+        'airplane_on': [
+            ['settings', 'put', 'global', 'airplane_mode_on', '1'],
+            ['am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', 'true']],
+        'airplane_off': [
+            ['settings', 'put', 'global', 'airplane_mode_on', '0'],
+            ['am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', 'false']],
+        'wifi_on': [
+            ['svc', 'wifi', 'enable'],
+        ],
+        'wifi_off': [
+            ['svc', 'wifi', 'disable'],
+        ],
+    }
+
+    def __init__(self):
+        raise NotImplementedError('DeviceHandler is single-instance')
 
     @classmethod
     def update_device_status(cls):
@@ -79,6 +98,7 @@ class DeviceHandler(object):
             each_device_id = each_device[0]
             cls.device_dict[each_device_id] = Device(each_device_id)
         logging.info('now devices: \n{}'.format(pprint.saferepr(cls.device_dict)))
+        return cls.device_dict
 
     @classmethod
     def check_connect(cls, device_list):
@@ -90,10 +110,13 @@ class DeviceHandler(object):
         return device_list
 
     @classmethod
-    def apply_cmd(cls, device_list, *cmd):
+    def apply_cmd(cls, device_list, *cmd, shell=None):
         for each_device_id in device_list:
             each_device = cls.device_dict[each_device_id]
-            each_device.adb(*cmd)
+            if shell:
+                each_device.adb.shell(*cmd)
+            else:
+                each_device.adb(*cmd)
 
     @classmethod
     def install(cls, device_list, apk_src):
@@ -103,7 +126,31 @@ class DeviceHandler(object):
             download_apk(apk_src, dst_apk_path)
         else:
             shutil.copyfile(apk_src, dst_apk_path)
-        cls.apply_cmd(device_list, 'install', dst_apk_path)
+        cls.apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
+
+    @classmethod
+    def uninstall(cls, device_list, package_name):
+        device_list = cls.check_connect(device_list)
+        cls.apply_cmd(device_list, 'uninstall', package_name)
+
+    @classmethod
+    def setting(cls, device_list, action):
+        device_list = cls.check_connect(device_list)
+        if action not in cls.action_dict:
+            raise NotImplementedError('action {} not supported yet'.format(action))
+        cmd_list = cls.action_dict[action]
+        for each_cmd in cmd_list:
+            cls.apply_cmd(device_list, *each_cmd, shell=True)
+
+    @classmethod
+    def screenshot(cls, device_list, dst_dir):
+        device_list = cls.check_connect(device_list)
+        for each_device_id in device_list:
+            temp_pic_path = '/sdcard/{}.png'.format(each_device_id)
+            shot_cmd = ['screencap', '-p', temp_pic_path]
+            pull_cmd = ['pull', temp_pic_path, dst_dir]
+            cls.apply_cmd([each_device_id, ], *shot_cmd, shell=True)
+            cls.apply_cmd([each_device_id, ], *pull_cmd)
 
 
 class CmdHandler(object):
@@ -114,31 +161,34 @@ class CmdHandler(object):
             raise ValueError('src should be apk: {}'.format(apk_src))
         DeviceHandler.install(device_list, apk_src)
 
-    def uninstall(self, device, *args, **kwargs):
-        desc_func()
-        print(device, *args, **kwargs)
-
-    def update(self, device, *args, **kwargs):
-        desc_func()
-        print(device, *args, **kwargs)
+    def uninstall(self, device, package_name):
+        device_list = device.split(',')
+        DeviceHandler.uninstall(device_list, package_name)
 
     # 修改设置
-    def setting(self, device, operation):
-        desc_func()
-        print(device, operation)
+    def setting(self, device, action):
+        device_list = device.split(',')
+        DeviceHandler.setting(device_list, action)
 
     # 文件管理
-    def upload(self, device, src, dst):
+    def upload(self):
         desc_func()
-        print(device, src, dst)
+        raise NotImplementedError('this function still building.')
+
+    def download(self):
+        desc_func()
+        raise NotImplementedError('this function still building.')
 
     # 截图
     def screenshot(self, device, dst):
-        desc_func()
-        print(device, dst)
+        device_list = device.split(',')
+        os.makedirs(dst, exist_ok=True)
+        DeviceHandler.screenshot(device_list, dst)
+
+    # 获取可用设备
+    def get_devices(self):
+        print(DeviceHandler.update_device_status())
 
 
 if __name__ == '__main__':
     fire.Fire(CmdHandler)
-    # Device(device_id='ZH7SPBVS99999999')
-    # DeviceHandler.install(['ZH7SPBVS99999999',], '/Users/fengzhangchi/Downloads/ADBKeyBoard.apk')
