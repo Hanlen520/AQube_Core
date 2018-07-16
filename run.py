@@ -108,6 +108,13 @@ class DeviceHandler(object):
         raise NotImplementedError('DeviceHandler is single-instance')
 
     @classmethod
+    def filter_device_list(cls, old_device_list):
+        new_device_list = cls.check_connect(old_device_list)
+        if not new_device_list:
+            raise ValueError('all devices disconnected')
+        return new_device_list
+
+    @classmethod
     def update_device_status(cls):
         adb_devices_result = ADB()('devices')
         device_list = [i.split('\t') for i in adb_devices_result.split('\n') if '\t' in i and 'device' in i]
@@ -137,7 +144,7 @@ class DeviceHandler(object):
 
     @classmethod
     def install(cls, device_list, apk_src):
-        device_list = cls.check_connect(device_list)
+        device_list = cls.filter_device_list(device_list)
         dst_apk_path = os.path.join(cf.WORKSPACE_DIR, 'temp.apk')
         if apk_src.startswith('http'):
             download_apk(apk_src, dst_apk_path)
@@ -147,12 +154,12 @@ class DeviceHandler(object):
 
     @classmethod
     def uninstall(cls, device_list, package_name):
-        device_list = cls.check_connect(device_list)
+        device_list = cls.filter_device_list(device_list)
         cls.apply_cmd(device_list, 'uninstall', package_name)
 
     @classmethod
     def setting(cls, device_list, action):
-        device_list = cls.check_connect(device_list)
+        device_list = cls.filter_device_list(device_list)
         if action not in cls.action_dict:
             raise NotImplementedError('action {} not supported yet'.format(action))
         cmd_list = cls.action_dict[action]
@@ -161,7 +168,7 @@ class DeviceHandler(object):
 
     @classmethod
     def screenshot(cls, device_list, dst_dir):
-        device_list = cls.check_connect(device_list)
+        device_list = cls.filter_device_list(device_list)
         for each_device_id in device_list:
             temp_pic_path = '/sdcard/{}.png'.format(each_device_id)
             shot_cmd = ['screencap', '-p', temp_pic_path]
