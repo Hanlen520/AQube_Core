@@ -24,6 +24,13 @@ logging.getLogger('').addHandler(ch)
 
 
 def download_apk(url, dst):
+    """
+    Download file and save it to dst path
+
+    :param url: target url
+    :param dst: dst path
+    :return:
+    """
     logging.info('start download: ' + url)
     res = requests.get(url)
     res.raise_for_status()
@@ -42,12 +49,20 @@ def desc_func():
 
 class ADB(object):
     def __init__(self, device_id=None):
-        adb_exec = ['adb']
+        adb_exec = ['adb', ]
         if device_id:
             adb_exec += ['-s', device_id]
         self.adb_exec = adb_exec
+        logging.debug('adb exec: {}'.format(self.adb_exec))
 
     def __call__(self, *args, **_):
+        """
+        pure adb command
+
+        :param args:
+        :param _:
+        :return:
+        """
         exec_cmd = [*self.adb_exec, *args]
         completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
         exec_result = completed_process.stdout
@@ -58,6 +73,13 @@ class ADB(object):
         return exec_result.decode()
 
     def shell(self, *args, **_):
+        """
+        pure adb shell command
+
+        :param args:
+        :param _:
+        :return:
+        """
         exec_cmd = [*self.adb_exec, 'shell', *args]
         completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
         exec_result = completed_process.stdout
@@ -78,6 +100,12 @@ class Device(object):
         return 'Device <id={} connected={}>'.format(self.device_id, self.status)
 
     def is_connected(self, device_id):
+        """
+        check if your device connected
+
+        :param device_id:
+        :return: bool
+        """
         adb_devices_result = self.adb('devices')
         result = [i for i in adb_devices_result.split('\n') if device_id in i and 'device' in i]
         logging.debug('Device {} is {}.'.format(
@@ -108,14 +136,26 @@ class DeviceHandler(object):
         raise NotImplementedError('DeviceHandler is single-instance')
 
     @classmethod
-    def filter_device_list(cls, old_device_list):
-        new_device_list = cls.check_connect(old_device_list)
+    def _filter_device_list(cls, old_device_list):
+        """
+        检查传入的设备列表并过滤
+        结果如果为空（没有交集），抛出异常
+
+        :param old_device_list:
+        :return new_device_list:
+        """
+        new_device_list = cls._check_connect(old_device_list)
         if not new_device_list:
             raise ValueError('all devices disconnected')
         return new_device_list
 
     @classmethod
-    def update_device_status(cls):
+    def _update_device_status(cls):
+        """
+        更新设备状态，返回当前可用的设备字典
+
+        :return: 当前设备字典
+        """
         adb_devices_result = ADB()('devices')
         device_list = [i.split('\t') for i in adb_devices_result.split('\n') if '\t' in i and 'device' in i]
         for each_device in device_list:
@@ -125,8 +165,14 @@ class DeviceHandler(object):
         return cls.device_dict
 
     @classmethod
-    def check_connect(cls, device_list):
-        cls.update_device_status()
+    def _check_connect(cls, device_list):
+        """
+        检查列表内机器的连接状态，并返回过滤后可用的设备列表
+
+        :param device_list:
+        :return:
+        """
+        cls._update_device_status()
         for each_device in device_list:
             if each_device not in cls.device_dict:
                 logging.warning('Device {} disconnected.'.format(each_device))
@@ -134,7 +180,15 @@ class DeviceHandler(object):
         return device_list
 
     @classmethod
-    def apply_cmd(cls, device_list, *cmd, shell=None):
+    def _apply_cmd(cls, device_list, *cmd, shell=None):
+        """
+        对device_list批量执行cmd
+
+        :param device_list:
+        :param cmd:
+        :param shell:
+        :return:
+        """
         for each_device_id in device_list:
             each_device = cls.device_dict[each_device_id]
             if shell:
@@ -142,45 +196,82 @@ class DeviceHandler(object):
             else:
                 each_device.adb(*cmd)
 
+    # --- 以下为暴露出来的方法 ---
+
     @classmethod
     def install(cls, device_list, apk_src):
-        device_list = cls.filter_device_list(device_list)
+        """
+        安装应用
+
+        :param device_list: 目标设备列表
+        :param apk_src: apk源，可以是url或者本地文件
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
         dst_apk_path = os.path.join(cf.WORKSPACE_DIR, 'temp.apk')
         if apk_src.startswith('http'):
             download_apk(apk_src, dst_apk_path)
         else:
             shutil.copyfile(apk_src, dst_apk_path)
-        cls.apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
+        cls._apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
 
     @classmethod
     def uninstall(cls, device_list, package_name):
-        device_list = cls.filter_device_list(device_list)
-        cls.apply_cmd(device_list, 'uninstall', package_name)
+        """
+        卸载应用
+
+        :param device_list: 目标设备列表
+        :param package_name: 目标包名
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
+        cls._apply_cmd(device_list, 'uninstall', package_name)
 
     @classmethod
     def setting(cls, device_list, action):
-        device_list = cls.filter_device_list(device_list)
+        """
+        修改设置
+
+        :param device_list: 目标设备列表
+        :param action: 目标动作，关联 cls.action_dict
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
         if action not in cls.action_dict:
             raise NotImplementedError('action {} not supported yet'.format(action))
         cmd_list = cls.action_dict[action]
         for each_cmd in cmd_list:
-            cls.apply_cmd(device_list, *each_cmd, shell=True)
+            cls._apply_cmd(device_list, *each_cmd, shell=True)
 
     @classmethod
     def screenshot(cls, device_list, dst_dir):
-        device_list = cls.filter_device_list(device_list)
+        """
+        截图并保存到指定位置
+
+        :param device_list: 目标设备列表
+        :param dst_dir: 目标文件夹（PC）
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
         for each_device_id in device_list:
             temp_pic_path = '/sdcard/{}.png'.format(each_device_id)
             shot_cmd = ['screencap', '-p', temp_pic_path]
             pull_cmd = ['pull', temp_pic_path, dst_dir]
-            cls.apply_cmd([each_device_id, ], *shot_cmd, shell=True)
-            cls.apply_cmd([each_device_id, ], *pull_cmd)
+            cls._apply_cmd([each_device_id, ], *shot_cmd, shell=True)
+            cls._apply_cmd([each_device_id, ], *pull_cmd)
 
     @classmethod
     def exec_cmd(cls, device_list, cmd_list, on_shell):
-        device_list = cls.filter_device_list(device_list)
-        for each_device_id in device_list:
-            cls.apply_cmd([each_device_id, ], *cmd_list, shell=on_shell)
+        """
+        执行自定义adb命令
+
+        :param device_list: 目标设备列表
+        :param cmd_list: cmd命令
+        :param on_shell: 是否由shell执行
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
+        cls._apply_cmd(device_list, *cmd_list, shell=on_shell)
 
 
 class CmdHandler(object):
@@ -217,7 +308,7 @@ class CmdHandler(object):
 
     # 获取可用设备
     def get_devices(self):
-        DeviceHandler.update_device_status()
+        DeviceHandler._update_device_status()
 
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
