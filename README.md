@@ -49,11 +49,31 @@ python run.py screenshot --dst <dst_path_in_pc> --device 123456F
 python run.py get_devices
 ```
 
-## More
+### 自定义adb命令
+
+``` bash
+python run.py exec_cmd --device 123456F --cmd 'ls' --shell 1
+python run.py exec_cmd --device 123456F --cmd 'install -t xxx.apk' --shell 0
+```
+
+## TODO
+
+本身：
 
 - 封装成桌面应用供用户使用
 - 提供更加细致的操作方案（例如借助json、yaml）
 - 需要有良好方便的插件化扩展能力，方便加新功能
 
+与其他模块结合：
 
+- 作为设备管理层存在，为上层server做支撑
+- 往 任务分发 + 设备管理 平台发展
 
+## Further: QubeSystem
+
+> 应用DevOps模式的自动化管理平台
+
+- 设备管理
+- 状态监控
+- 任务分发
+- 环境控制

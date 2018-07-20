@@ -176,6 +176,12 @@ class DeviceHandler(object):
             cls.apply_cmd([each_device_id, ], *shot_cmd, shell=True)
             cls.apply_cmd([each_device_id, ], *pull_cmd)
 
+    @classmethod
+    def exec_cmd(cls, device_list, cmd_list, on_shell):
+        device_list = cls.filter_device_list(device_list)
+        for each_device_id in device_list:
+            cls.apply_cmd([each_device_id, ], *cmd_list, shell=on_shell)
+
 
 class CmdHandler(object):
     # 安装/删除/更新 软件
@@ -212,6 +218,12 @@ class CmdHandler(object):
     # 获取可用设备
     def get_devices(self):
         DeviceHandler.update_device_status()
+
+    # 执行自定义adb命令
+    def exec_cmd(self, device, cmd, shell):
+        device_list = device.split(',')
+        cmd_list = cmd.split(' ')
+        DeviceHandler.exec_cmd(device_list, cmd_list, bool(shell))
 
 
 if __name__ == '__main__':
