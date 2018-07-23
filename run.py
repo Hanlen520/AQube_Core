@@ -261,6 +261,35 @@ class DeviceHandler(object):
             cls._apply_cmd([each_device_id, ], *pull_cmd)
 
     @classmethod
+    def push(cls, device_list, src, dst):
+        """
+        类比adb的push
+
+        :param device_list:
+        :param src:
+        :param dst:
+        :return:
+        """
+        # TODO windows路径有问题
+        device_list = cls._filter_device_list(device_list)
+        push_cmd = ['push', src, dst]
+        cls._apply_cmd(device_list, push_cmd, shell=False)
+
+    @classmethod
+    def pull(cls, device_list, src, dst):
+        """
+        类比adb的pull
+
+        :param device_list:
+        :param src:
+        :param dst:
+        :return:
+        """
+        device_list = cls._filter_device_list(device_list)
+        push_cmd = ['pull', src, dst]
+        cls._apply_cmd(device_list, push_cmd, shell=False)
+
+    @classmethod
     def exec_cmd(cls, device_list, cmd_list, on_shell):
         """
         执行自定义adb命令
@@ -274,35 +303,48 @@ class DeviceHandler(object):
         cls._apply_cmd(device_list, *cmd_list, shell=on_shell)
 
 
+# --- fire part ---
+def format_device(device_list):
+    if isinstance(device_list, str):
+        return device_list.split(',')
+    elif isinstance(device_list, (tuple, list)):
+        return device_list
+    else:
+        raise TypeError('unexpected type: {}'.format(device_list))
+
+
 class CmdHandler(object):
     # 安装/删除/更新 软件
     def install(self, device, apk_src):
-        device = device.split(',') if isinstance(device, str) else device
+        device = format_device(device)
         if not apk_src.endswith('.apk'):
             raise ValueError('src should be apk: {}'.format(apk_src))
         DeviceHandler.install(device, apk_src)
 
     def uninstall(self, device, package_name):
-        device = device.split(',') if isinstance(device, str) else device
+        device = format_device(device)
         DeviceHandler.uninstall(device, package_name)
 
     # 修改设置
     def setting(self, device, action):
-        device = device.split(',') if isinstance(device, str) else device
+        device = format_device(device)
         DeviceHandler.setting(device, action)
 
     # 文件管理
-    def upload(self):
-        desc_func()
-        raise NotImplementedError('this function still building.')
+    def push(self, device, src, dst):
+        device = format_device(device)
+        if not os.path.exists(src):
+            raise FileNotFoundError('no file found in: {}'.format(src))
+        DeviceHandler.push(device, src, dst)
 
-    def download(self):
-        desc_func()
-        raise NotImplementedError('this function still building.')
+    def pull(self, device, src, dst):
+        device = format_device(device)
+        # TODO should check if src exists?
+        DeviceHandler.pull(device, src, dst)
 
     # 截图
     def screenshot(self, device, dst):
-        device = device.split(',') if isinstance(device, str) else device
+        device = format_device(device)
         os.makedirs(dst, exist_ok=True)
         DeviceHandler.screenshot(device, dst)
 
@@ -312,7 +354,7 @@ class CmdHandler(object):
 
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
-        device = device.split(',') if isinstance(device, str) else device
+        device = format_device(device)
         cmd_list = cmd.split(' ')
         DeviceHandler.exec_cmd(device, cmd_list, bool(shell))
 
