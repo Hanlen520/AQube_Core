@@ -1,11 +1,11 @@
 import fire
-import inspect
 import subprocess
 import pprint
 import requests
 import os
 import shutil
 import logging
+import functools
 import config as cf
 
 # init logging
@@ -126,6 +126,16 @@ class Device(object):
         return bool(result)
 
 
+def action_wrapper(func):
+    @functools.wraps(func)
+    def wrap(cls, device_list, *args, **kwargs):
+        device_list = cls._filter_device_list(device_list)
+        exec_result = func(cls, device_list, *args, **kwargs)
+        print(exec_result)
+        return exec_result
+    return wrap
+
+
 class DeviceHandler(object):
     device_dict = dict()
     shell_dict = load_extend_shell()
@@ -210,6 +220,7 @@ class DeviceHandler(object):
     # --- 以下为暴露出来的方法 ---
 
     @classmethod
+    @action_wrapper
     def install(cls, device_list, apk_src):
         """
         安装应用
@@ -228,6 +239,7 @@ class DeviceHandler(object):
         logging.info(exec_result)
 
     @classmethod
+    @action_wrapper
     def uninstall(cls, device_list, package_name):
         """
         卸载应用
@@ -237,9 +249,11 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        cls._apply_cmd(device_list, 'uninstall', package_name)
+        return cls._apply_cmd(device_list, 'uninstall', package_name)
+
 
     @classmethod
+    @action_wrapper
     def setting(cls, device_list, action):
         """
         修改设置
@@ -254,8 +268,10 @@ class DeviceHandler(object):
         cmd_list = cls.action_dict[action]
         for each_cmd in cmd_list:
             cls._apply_cmd(device_list, *each_cmd, shell=True)
+        return True
 
     @classmethod
+    @action_wrapper
     def screenshot(cls, device_list, dst_dir):
         """
         截图并保存到指定位置
@@ -271,8 +287,10 @@ class DeviceHandler(object):
             pull_cmd = ['pull', temp_pic_path, dst_dir]
             cls._apply_cmd([each_device_id, ], *shot_cmd, shell=True)
             cls._apply_cmd([each_device_id, ], *pull_cmd)
+        return True
 
     @classmethod
+    @action_wrapper
     def push(cls, device_list, src, dst):
         """
         类比adb的push
@@ -285,9 +303,10 @@ class DeviceHandler(object):
         # TODO windows路径有问题
         device_list = cls._filter_device_list(device_list)
         push_cmd = ['push', src, dst]
-        cls._apply_cmd(device_list, *push_cmd, shell=False)
+        return cls._apply_cmd(device_list, *push_cmd, shell=False)
 
     @classmethod
+    @action_wrapper
     def pull(cls, device_list, src, dst):
         """
         类比adb的pull
@@ -299,9 +318,10 @@ class DeviceHandler(object):
         """
         device_list = cls._filter_device_list(device_list)
         pull_cmd = ['pull', src, dst]
-        cls._apply_cmd(device_list, *pull_cmd, shell=False)
+        return cls._apply_cmd(device_list, *pull_cmd, shell=False)
 
     @classmethod
+    @action_wrapper
     def exec_cmd(cls, device_list, cmd_list, on_shell):
         """
         执行自定义adb命令
@@ -312,9 +332,10 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        cls._apply_cmd(device_list, *cmd_list, shell=on_shell)
+        return cls._apply_cmd(device_list, *cmd_list, shell=on_shell)
 
     @classmethod
+    @action_wrapper
     def exec_extend_shell(cls, device_list, shell_name):
         """
         运行放置在extend文件夹下的shell脚本
@@ -327,6 +348,7 @@ class DeviceHandler(object):
         current_shell_path = os.path.join(cf.TEMP_SHELL_DIR, shell_name)
         cls.exec_cmd(device_list, ['chmod', '777', current_shell_path], on_shell=True)
         cls.exec_cmd(device_list, ['sh', current_shell_path], on_shell=True)
+        return True
 
 
 # --- fire part ---
@@ -377,7 +399,8 @@ class CmdHandler(object):
 
     # 获取可用设备
     def get_devices(self):
-        DeviceHandler._update_device_status()
+        result = DeviceHandler._update_device_status()
+        print(result)
 
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
