@@ -30,11 +30,11 @@ python run.py setting --device 123456F --action wifi_on
 python run.py setting --device 123456F --action wifi_off
 ```
 
-### 文件管理（TODO)
+### 文件管理
 
 ``` bash
-python run.py upload --device 123456F --src <src_path_in_pc> --dst <dst_path_in_android>
-python run.py download --device 123456F --src <src_path_in_android> --dst <dst_path_in_pc>
+python run.py push --device 123456F --src <src_path_in_pc> --dst <dst_path_in_android>
+python run.py pull --device 123456F --src <src_path_in_android> --dst <dst_path_in_pc>
 ```
 
 ### 截图
@@ -49,11 +49,17 @@ python run.py screenshot --dst <dst_path_in_pc> --device 123456F
 python run.py get_devices
 ```
 
-### 自定义adb命令
+### 运行自定义adb命令
 
 ``` bash
 python run.py exec_cmd --device 123456F --cmd 'ls' --shell 1
 python run.py exec_cmd --device 123456F --cmd 'install -t xxx.apk' --shell 0
+```
+
+### 运行自定义shell脚本
+
+``` bash
+python run.py exec_extend_shell --device 123456F --shell_name turn_on_assistant.sh
 ```
 
 ## TODO

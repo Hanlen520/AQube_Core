@@ -23,6 +23,23 @@ ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logging.getLogger('').addHandler(ch)
 
 
+def load_extend_shell():
+    """
+    读取extend文件夹下的shell脚本
+
+    :return: shell list
+    """
+    if not os.path.exists(cf.EXTEND_DIR):
+        raise NotADirectoryError('no extend directory found')
+    shell_dict = {
+        each_shell_name: os.path.join(cf.EXTEND_DIR, each_shell_name)
+        for each_shell_name in os.listdir(cf.EXTEND_DIR)
+        if each_shell_name.endswith('.sh')
+    }
+    logging.debug('extend shell: \n{}'.format(pprint.saferepr(shell_dict)))
+    return shell_dict
+
+
 def download_apk(url, dst):
     """
     Download file and save it to dst path
@@ -39,12 +56,6 @@ def download_apk(url, dst):
         apk_file.write(chunk)
     apk_file.close()
     logging.info('download finished')
-
-
-def desc_func():
-    func_name = inspect.stack()[1][3]
-    print('call function: {}'.format(func_name))
-    return func_name
 
 
 class ADB(object):
@@ -64,7 +75,7 @@ class ADB(object):
         :return:
         """
         exec_cmd = [*self.adb_exec, *args]
-        completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
+        completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         exec_result = completed_process.stdout
         exec_err = completed_process.stderr
         if exec_err:
@@ -117,6 +128,7 @@ class Device(object):
 
 class DeviceHandler(object):
     device_dict = dict()
+    shell_dict = load_extend_shell()
     action_dict = {
         'airplane_on': [
             ['settings', 'put', 'global', 'airplane_mode_on', '1'],
@@ -161,7 +173,7 @@ class DeviceHandler(object):
         for each_device in device_list:
             each_device_id = each_device[0]
             cls.device_dict[each_device_id] = Device(each_device_id)
-        logging.info('now devices: \n{}'.format(pprint.saferepr(cls.device_dict)))
+        logging.debug('now devices: \n{}'.format(pprint.saferepr(cls.device_dict)))
         return cls.device_dict
 
     @classmethod
@@ -192,9 +204,8 @@ class DeviceHandler(object):
         for each_device_id in device_list:
             each_device = cls.device_dict[each_device_id]
             if shell:
-                each_device.adb.shell(*cmd)
-            else:
-                each_device.adb(*cmd)
+                return each_device.adb.shell(*cmd)
+            return each_device.adb(*cmd)
 
     # --- 以下为暴露出来的方法 ---
 
@@ -213,7 +224,8 @@ class DeviceHandler(object):
             download_apk(apk_src, dst_apk_path)
         else:
             shutil.copyfile(apk_src, dst_apk_path)
-        cls._apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
+        exec_result = cls._apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
+        logging.info(exec_result)
 
     @classmethod
     def uninstall(cls, device_list, package_name):
@@ -273,7 +285,7 @@ class DeviceHandler(object):
         # TODO windows路径有问题
         device_list = cls._filter_device_list(device_list)
         push_cmd = ['push', src, dst]
-        cls._apply_cmd(device_list, push_cmd, shell=False)
+        cls._apply_cmd(device_list, *push_cmd, shell=False)
 
     @classmethod
     def pull(cls, device_list, src, dst):
@@ -286,8 +298,8 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        push_cmd = ['pull', src, dst]
-        cls._apply_cmd(device_list, push_cmd, shell=False)
+        pull_cmd = ['pull', src, dst]
+        cls._apply_cmd(device_list, *pull_cmd, shell=False)
 
     @classmethod
     def exec_cmd(cls, device_list, cmd_list, on_shell):
@@ -302,9 +314,24 @@ class DeviceHandler(object):
         device_list = cls._filter_device_list(device_list)
         cls._apply_cmd(device_list, *cmd_list, shell=on_shell)
 
+    @classmethod
+    def exec_extend_shell(cls, device_list, shell_name):
+        """
+        运行放置在extend文件夹下的shell脚本
+
+        :param device_list:
+        :param shell_name:
+        :return:
+        """
+        cls.push(device_list, cls.shell_dict[shell_name], cf.TEMP_SHELL_DIR)
+        current_shell_path = os.path.join(cf.TEMP_SHELL_DIR, shell_name)
+        cls.exec_cmd(device_list, ['chmod', '777', current_shell_path], on_shell=True)
+        cls.exec_cmd(device_list, ['sh', current_shell_path], on_shell=True)
+
 
 # --- fire part ---
 def format_device(device_list):
+    # for some fire version, device list is not a list.
     if isinstance(device_list, str):
         return device_list.split(',')
     elif isinstance(device_list, (tuple, list)):
@@ -357,6 +384,13 @@ class CmdHandler(object):
         device = format_device(device)
         cmd_list = cmd.split(' ')
         DeviceHandler.exec_cmd(device, cmd_list, bool(shell))
+
+    # 执行自定义shell脚本
+    def exec_extend_shell(self, device, shell_name):
+        device = format_device(device)
+        if shell_name not in DeviceHandler.shell_dict:
+            raise FileNotFoundError('no shell named {}'.format(shell_name))
+        DeviceHandler.exec_extend_shell(device, shell_name)
 
 
 if __name__ == '__main__':
