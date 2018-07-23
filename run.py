@@ -277,19 +277,16 @@ class DeviceHandler(object):
 class CmdHandler(object):
     # 安装/删除/更新 软件
     def install(self, device, apk_src):
-        device_list = device.split(',')
         if not apk_src.endswith('.apk'):
             raise ValueError('src should be apk: {}'.format(apk_src))
-        DeviceHandler.install(device_list, apk_src)
+        DeviceHandler.install(device, apk_src)
 
     def uninstall(self, device, package_name):
-        device_list = device.split(',')
-        DeviceHandler.uninstall(device_list, package_name)
+        DeviceHandler.uninstall(device, package_name)
 
     # 修改设置
     def setting(self, device, action):
-        device_list = device.split(',')
-        DeviceHandler.setting(device_list, action)
+        DeviceHandler.setting(device, action)
 
     # 文件管理
     def upload(self):
@@ -302,9 +299,8 @@ class CmdHandler(object):
 
     # 截图
     def screenshot(self, device, dst):
-        device_list = device.split(',')
         os.makedirs(dst, exist_ok=True)
-        DeviceHandler.screenshot(device_list, dst)
+        DeviceHandler.screenshot(device, dst)
 
     # 获取可用设备
     def get_devices(self):
