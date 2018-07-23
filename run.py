@@ -277,15 +277,18 @@ class DeviceHandler(object):
 class CmdHandler(object):
     # 安装/删除/更新 软件
     def install(self, device, apk_src):
+        device = device.split(',') if isinstance(device, str) else device
         if not apk_src.endswith('.apk'):
             raise ValueError('src should be apk: {}'.format(apk_src))
         DeviceHandler.install(device, apk_src)
 
     def uninstall(self, device, package_name):
+        device = device.split(',') if isinstance(device, str) else device
         DeviceHandler.uninstall(device, package_name)
 
     # 修改设置
     def setting(self, device, action):
+        device = device.split(',') if isinstance(device, str) else device
         DeviceHandler.setting(device, action)
 
     # 文件管理
@@ -299,6 +302,7 @@ class CmdHandler(object):
 
     # 截图
     def screenshot(self, device, dst):
+        device = device.split(',') if isinstance(device, str) else device
         os.makedirs(dst, exist_ok=True)
         DeviceHandler.screenshot(device, dst)
 
@@ -308,9 +312,9 @@ class CmdHandler(object):
 
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
-        device_list = device.split(',')
+        device = device.split(',') if isinstance(device, str) else device
         cmd_list = cmd.split(' ')
-        DeviceHandler.exec_cmd(device_list, cmd_list, bool(shell))
+        DeviceHandler.exec_cmd(device, cmd_list, bool(shell))
 
 
 if __name__ == '__main__':
