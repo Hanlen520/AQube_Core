@@ -195,6 +195,7 @@ class DeviceHandler(object):
         :return:
         """
         cls._update_device_status()
+        device_list = list(device_list)
         for each_device in device_list:
             if each_device not in cls.device_dict:
                 logging.warning('Device {} disconnected.'.format(each_device))
@@ -345,7 +346,7 @@ class DeviceHandler(object):
         :return:
         """
         cls.push(device_list, cls.shell_dict[shell_name], cf.TEMP_SHELL_DIR)
-        current_shell_path = os.path.join(cf.TEMP_SHELL_DIR, shell_name)
+        current_shell_path = cf.TEMP_SHELL_DIR + '/' + shell_name
         cls.exec_cmd(device_list, ['chmod', '777', current_shell_path], on_shell=True)
         cls.exec_cmd(device_list, ['sh', current_shell_path], on_shell=True)
         return True
