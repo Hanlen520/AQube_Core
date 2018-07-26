@@ -6,6 +6,7 @@ import os
 import shutil
 import logging
 import functools
+import json
 import config as cf
 from pythonjsonlogger import jsonlogger
 
@@ -13,9 +14,9 @@ from pythonjsonlogger import jsonlogger
 # init logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(levelname)s - %(message)s",
     filename=cf.LOG_FILE,
-    filemode='a',
+    filemode="a",
 )
 
 ch = logging.StreamHandler()
@@ -23,7 +24,7 @@ formatter = jsonlogger.JsonFormatter()
 ch.setFormatter(formatter)
 ch.setLevel(logging.INFO)
 
-logging.getLogger('').addHandler(ch)
+logging.getLogger("").addHandler(ch)
 
 
 def load_extend_shell():
@@ -33,13 +34,13 @@ def load_extend_shell():
     :return: shell list
     """
     if not os.path.exists(cf.EXTEND_DIR):
-        raise NotADirectoryError('no extend directory found')
+        raise NotADirectoryError("no extend directory found")
     shell_dict = {
         each_shell_name: os.path.join(cf.EXTEND_DIR, each_shell_name)
         for each_shell_name in os.listdir(cf.EXTEND_DIR)
-        if each_shell_name.endswith('.sh')
+        if each_shell_name.endswith(".sh")
     }
-    logging.debug('extend shell: \n{}'.format(pprint.saferepr(shell_dict)))
+    logging.debug("extend shell: \n{}".format(pprint.saferepr(shell_dict)))
     return shell_dict
 
 
@@ -51,23 +52,23 @@ def download_apk(url, dst):
     :param dst: dst path
     :return:
     """
-    logging.info('start download: ' + url)
+    logging.info("start download: " + url)
     res = requests.get(url)
     res.raise_for_status()
-    apk_file = open(dst, 'wb')
+    apk_file = open(dst, "wb")
     for chunk in res.iter_content(100000):
         apk_file.write(chunk)
     apk_file.close()
-    logging.info('download finished')
+    logging.info("download finished")
 
 
 class ADB(object):
     def __init__(self, device_id=None):
-        adb_exec = ['adb', ]
+        adb_exec = ["adb", ]
         if device_id:
-            adb_exec += ['-s', device_id]
+            adb_exec += ["-s", device_id]
         self.adb_exec = adb_exec
-        logging.debug('adb exec: {}'.format(self.adb_exec))
+        logging.debug("adb exec: {}".format(self.adb_exec))
 
     def __call__(self, *args, **_):
         """
@@ -83,7 +84,7 @@ class ADB(object):
         exec_err = completed_process.stderr
         if exec_err:
             raise RuntimeError(exec_err.decode())
-        logging.debug('{} => {}'.format(exec_cmd, exec_result))
+        logging.debug("{} => {}".format(exec_cmd, exec_result))
         return exec_result.decode()
 
     def shell(self, *args, **_):
@@ -94,13 +95,13 @@ class ADB(object):
         :param _:
         :return:
         """
-        exec_cmd = [*self.adb_exec, 'shell', *args]
+        exec_cmd = [*self.adb_exec, "shell", *args]
         completed_process = subprocess.run(exec_cmd, stdout=subprocess.PIPE)
         exec_result = completed_process.stdout
         exec_err = completed_process.stderr
         if exec_err:
             raise RuntimeError(exec_err.decode())
-        logging.debug('{} => {}'.format(exec_cmd, exec_result))
+        logging.debug("{} => {}".format(exec_cmd, exec_result))
         return exec_result.decode()
 
 
@@ -111,7 +112,10 @@ class Device(object):
         self.status = self.is_connected(device_id)
 
     def __repr__(self):
-        return 'Device <id={} connected={}>'.format(self.device_id, self.status)
+        return json.dumps({
+            "device_id": self.device_id,
+            "status": self.status
+        })
 
     def is_connected(self, device_id):
         """
@@ -120,11 +124,11 @@ class Device(object):
         :param device_id:
         :return: bool
         """
-        adb_devices_result = self.adb('devices')
-        result = [i for i in adb_devices_result.split('\n') if device_id in i and 'device' in i]
-        logging.debug('Device {} is {}.'.format(
+        adb_devices_result = self.adb("devices")
+        result = [i for i in adb_devices_result.split("\n") if device_id in i and "device" in i]
+        logging.debug("Device {} is {}.".format(
             device_id,
-            'connected' if result else 'disconnected'
+            "connected" if result else "disconnected"
         ))
         return bool(result)
 
@@ -143,22 +147,22 @@ class DeviceHandler(object):
     device_dict = dict()
     shell_dict = load_extend_shell()
     action_dict = {
-        'airplane_on': [
-            ['settings', 'put', 'global', 'airplane_mode_on', '1'],
-            ['am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', 'true']],
-        'airplane_off': [
-            ['settings', 'put', 'global', 'airplane_mode_on', '0'],
-            ['am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', 'false']],
-        'wifi_on': [
-            ['svc', 'wifi', 'enable'],
+        "airplane_on": [
+            ["settings", "put", "global", "airplane_mode_on", "1"],
+            ["am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", "true"]],
+        "airplane_off": [
+            ["settings", "put", "global", "airplane_mode_on", "0"],
+            ["am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", "false"]],
+        "wifi_on": [
+            ["svc", "wifi", "enable"],
         ],
-        'wifi_off': [
-            ['svc', 'wifi', 'disable'],
+        "wifi_off": [
+            ["svc", "wifi", "disable"],
         ],
     }
 
     def __init__(self):
-        raise NotImplementedError('DeviceHandler is single-instance')
+        raise NotImplementedError("DeviceHandler is single-instance")
 
     @classmethod
     def _filter_device_list(cls, old_device_list):
@@ -171,7 +175,7 @@ class DeviceHandler(object):
         """
         new_device_list = cls._check_connect(old_device_list)
         if not new_device_list:
-            raise ValueError('all devices disconnected')
+            raise ValueError("all devices disconnected")
         return new_device_list
 
     @classmethod
@@ -181,12 +185,12 @@ class DeviceHandler(object):
 
         :return: 当前设备字典
         """
-        adb_devices_result = ADB()('devices')
-        device_list = [i.split('\t') for i in adb_devices_result.split('\n') if '\t' in i and 'device' in i]
+        adb_devices_result = ADB()("devices")
+        device_list = [i.split("\t") for i in adb_devices_result.split("\n") if "\t" in i and "device" in i]
         for each_device in device_list:
             each_device_id = each_device[0]
             cls.device_dict[each_device_id] = Device(each_device_id)
-        logging.debug('now devices: \n{}'.format(pprint.saferepr(cls.device_dict)))
+        logging.debug("now devices: \n{}".format(pprint.saferepr(cls.device_dict)))
         return cls.device_dict
 
     @classmethod
@@ -201,7 +205,7 @@ class DeviceHandler(object):
         device_list = list(device_list)
         for each_device in device_list:
             if each_device not in cls.device_dict:
-                logging.warning('Device {} disconnected.'.format(each_device))
+                logging.warning("Device {} disconnected.".format(each_device))
                 device_list.remove(each_device)
         return device_list
 
@@ -234,12 +238,12 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        dst_apk_path = os.path.join(cf.WORKSPACE_DIR, 'temp.apk')
-        if apk_src.startswith('http'):
+        dst_apk_path = os.path.join(cf.WORKSPACE_DIR, "temp.apk")
+        if apk_src.startswith("http"):
             download_apk(apk_src, dst_apk_path)
         else:
             shutil.copyfile(apk_src, dst_apk_path)
-        exec_result = cls._apply_cmd(device_list, 'install', '-r', '-d', dst_apk_path)
+        exec_result = cls._apply_cmd(device_list, "install", "-r", "-d", dst_apk_path)
         logging.info(exec_result)
 
     @classmethod
@@ -253,7 +257,7 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        return cls._apply_cmd(device_list, 'uninstall', package_name)
+        return cls._apply_cmd(device_list, "uninstall", package_name)
 
 
     @classmethod
@@ -268,7 +272,7 @@ class DeviceHandler(object):
         """
         device_list = cls._filter_device_list(device_list)
         if action not in cls.action_dict:
-            raise NotImplementedError('action {} not supported yet'.format(action))
+            raise NotImplementedError("action {} not supported yet".format(action))
         cmd_list = cls.action_dict[action]
         for each_cmd in cmd_list:
             cls._apply_cmd(device_list, *each_cmd, shell=True)
@@ -286,9 +290,9 @@ class DeviceHandler(object):
         """
         device_list = cls._filter_device_list(device_list)
         for each_device_id in device_list:
-            temp_pic_path = '/sdcard/{}.png'.format(each_device_id)
-            shot_cmd = ['screencap', '-p', temp_pic_path]
-            pull_cmd = ['pull', temp_pic_path, dst_dir]
+            temp_pic_path = "/sdcard/{}.png".format(each_device_id)
+            shot_cmd = ["screencap", "-p", temp_pic_path]
+            pull_cmd = ["pull", temp_pic_path, dst_dir]
             cls._apply_cmd([each_device_id, ], *shot_cmd, shell=True)
             cls._apply_cmd([each_device_id, ], *pull_cmd)
         return True
@@ -306,7 +310,7 @@ class DeviceHandler(object):
         """
         # TODO windows路径有问题
         device_list = cls._filter_device_list(device_list)
-        push_cmd = ['push', src, dst]
+        push_cmd = ["push", src, dst]
         return cls._apply_cmd(device_list, *push_cmd, shell=False)
 
     @classmethod
@@ -321,7 +325,7 @@ class DeviceHandler(object):
         :return:
         """
         device_list = cls._filter_device_list(device_list)
-        pull_cmd = ['pull', src, dst]
+        pull_cmd = ["pull", src, dst]
         return cls._apply_cmd(device_list, *pull_cmd, shell=False)
 
     @classmethod
@@ -349,9 +353,9 @@ class DeviceHandler(object):
         :return:
         """
         cls.push(device_list, cls.shell_dict[shell_name], cf.TEMP_SHELL_DIR)
-        current_shell_path = cf.TEMP_SHELL_DIR + '/' + shell_name
-        cls.exec_cmd(device_list, ['chmod', '777', current_shell_path], on_shell=True)
-        cls.exec_cmd(device_list, ['sh', current_shell_path], on_shell=True)
+        current_shell_path = cf.TEMP_SHELL_DIR + "/" + shell_name
+        cls.exec_cmd(device_list, ["chmod", "777", current_shell_path], on_shell=True)
+        cls.exec_cmd(device_list, ["sh", current_shell_path], on_shell=True)
         return True
 
 
@@ -359,19 +363,19 @@ class DeviceHandler(object):
 def format_device(device_list):
     # for some fire version, device list is not a list.
     if isinstance(device_list, str):
-        return device_list.split(',')
+        return device_list.split(",")
     elif isinstance(device_list, (tuple, list)):
         return device_list
     else:
-        raise TypeError('unexpected type: {}'.format(device_list))
+        raise TypeError("unexpected type: {}".format(device_list))
 
 
 class CmdHandler(object):
     # 安装/删除/更新 软件
     def install(self, device, apk_src):
         device = format_device(device)
-        if not apk_src.endswith('.apk'):
-            raise ValueError('src should be apk: {}'.format(apk_src))
+        if not apk_src.endswith(".apk"):
+            raise ValueError("src should be apk: {}".format(apk_src))
         DeviceHandler.install(device, apk_src)
 
     def uninstall(self, device, package_name):
@@ -387,7 +391,7 @@ class CmdHandler(object):
     def push(self, device, src, dst):
         device = format_device(device)
         if not os.path.exists(src):
-            raise FileNotFoundError('no file found in: {}'.format(src))
+            raise FileNotFoundError("no file found in: {}".format(src))
         DeviceHandler.push(device, src, dst)
 
     def pull(self, device, src, dst):
@@ -409,16 +413,16 @@ class CmdHandler(object):
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
         device = format_device(device)
-        cmd_list = cmd.split(' ')
+        cmd_list = cmd.split(" ")
         DeviceHandler.exec_cmd(device, cmd_list, bool(shell))
 
     # 执行自定义shell脚本
     def exec_extend_shell(self, device, shell_name):
         device = format_device(device)
         if shell_name not in DeviceHandler.shell_dict:
-            raise FileNotFoundError('no shell named {}'.format(shell_name))
+            raise FileNotFoundError("no shell named {}".format(shell_name))
         DeviceHandler.exec_extend_shell(device, shell_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     fire.Fire(CmdHandler)
