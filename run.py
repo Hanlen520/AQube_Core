@@ -7,6 +7,8 @@ import shutil
 import logging
 import functools
 import config as cf
+from pythonjsonlogger import jsonlogger
+
 
 # init logging
 logging.basicConfig(
@@ -17,8 +19,9 @@ logging.basicConfig(
 )
 
 ch = logging.StreamHandler()
+formatter = jsonlogger.JsonFormatter()
+ch.setFormatter(formatter)
 ch.setLevel(logging.INFO)
-ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 logging.getLogger('').addHandler(ch)
 
