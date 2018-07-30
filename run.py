@@ -424,17 +424,20 @@ class CmdHandler(object):
             raise FileNotFoundError("no shell named {}".format(shell_name))
         DeviceHandler.exec_extend_shell(device, shell_name)
 
-    # 临时：快应用编译+打包+推送到手机
-    def debug_qa(self, device, proj_dir, is_auto=None):
-        device = format_device(device)
+    # 与手机无关的部分
+    def npm_install(self, project_dir):
         now_cwd = os.getcwd()
-        os.chdir(proj_dir)
+        os.chdir(project_dir)
         subprocess.run(['npm', 'install'], shell=True)
-        if is_auto:
+        os.chdir(now_cwd)
+
+    def npm_build(self, project_dir, test=None):
+        now_cwd = os.getcwd()
+        os.chdir(project_dir)
+        if test:
             subprocess.run(['npm', 'run', 'build:test'], shell=True)
         else:
             subprocess.run(['npm', 'run', 'build'], shell=True)
-        DeviceHandler.push(device, r'dist\.', '/sdcard/rpks')
         os.chdir(now_cwd)
 
 
