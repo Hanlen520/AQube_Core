@@ -34,7 +34,8 @@ def load_extend_shell():
     :return: shell list
     """
     if not os.path.exists(cf.EXTEND_DIR):
-        raise NotADirectoryError("no extend directory found")
+        logging.warning("no extend directory found")
+        return dict()
     shell_dict = {
         each_shell_name: os.path.join(cf.EXTEND_DIR, each_shell_name)
         for each_shell_name in os.listdir(cf.EXTEND_DIR)
@@ -422,6 +423,19 @@ class CmdHandler(object):
         if shell_name not in DeviceHandler.shell_dict:
             raise FileNotFoundError("no shell named {}".format(shell_name))
         DeviceHandler.exec_extend_shell(device, shell_name)
+
+    # 临时：快应用编译+打包+推送到手机
+    def debug_qa(self, device, proj_dir, is_auto=None):
+        device = format_device(device)
+        now_cwd = os.getcwd()
+        os.chdir(proj_dir)
+        subprocess.run(['npm', 'install'], shell=True)
+        if is_auto:
+            subprocess.run(['npm', 'run', 'build:test'], shell=True)
+        else:
+            subprocess.run(['npm', 'run', 'build'], shell=True)
+        DeviceHandler.push(device, r'dist\.', '/sdcard/rpks')
+        os.chdir(now_cwd)
 
 
 if __name__ == "__main__":
