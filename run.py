@@ -220,11 +220,15 @@ class DeviceHandler(object):
         :param shell:
         :return:
         """
+        result_list = list()
         for each_device_id in device_list:
             each_device = cls.device_dict[each_device_id]
             if shell:
-                return each_device.adb.shell(*cmd)
-            return each_device.adb(*cmd)
+                each_result = each_device.adb.shell(*cmd)
+            else:
+                each_result = each_device.adb(*cmd)
+            result_list.append(each_result)
+        return result_list
 
     # --- 以下为暴露出来的方法 ---
 
@@ -244,7 +248,7 @@ class DeviceHandler(object):
             download_apk(apk_src, dst_apk_path)
         else:
             shutil.copyfile(apk_src, dst_apk_path)
-        exec_result = cls._apply_cmd(device_list, "install", "-r", "-d", dst_apk_path)
+        exec_result = cls._apply_cmd(device_list, "install", "-r", "-d", "-t", dst_apk_path)
         logging.info(exec_result)
 
     @classmethod
