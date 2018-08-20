@@ -38,6 +38,17 @@ ch.setLevel(logging.INFO)
 logging.getLogger("").addHandler(ch)
 
 
+# --- standard print ---
+# 统一使用json格式输出
+def standard_print(output_content, need_pack=None):
+    if need_pack:
+        final_output = json.dumps({"result": output_content})
+    else:
+        final_output = str(output_content)
+    print(final_output)
+    return final_output
+
+
 def load_extend_shell():
     """
     读取extend文件夹下的shell脚本
@@ -64,14 +75,14 @@ def download_apk(url, dst):
     :param dst: dst path
     :return:
     """
-    logging.info("start download: " + url)
+    logging.debug("start download: " + url)
     res = requests.get(url)
     res.raise_for_status()
     apk_file = open(dst, "wb")
     for chunk in res.iter_content(100000):
         apk_file.write(chunk)
     apk_file.close()
-    logging.info("download finished")
+    logging.debug("download finished")
 
 
 class ADB(object):
@@ -129,6 +140,8 @@ class Device(object):
             "status": self.status
         })
 
+    __str__ = __repr__
+
     def is_connected(self, device_id):
         """
         check if your device connected
@@ -150,7 +163,7 @@ def action_wrapper(func):
     def wrap(cls, device_list, *args, **kwargs):
         device_list = cls._filter_device_list(device_list)
         exec_result = func(cls, device_list, *args, **kwargs)
-        print(exec_result)
+        standard_print(exec_result, need_pack=True)
         return exec_result
     return wrap
 
@@ -260,7 +273,8 @@ class DeviceHandler(object):
         else:
             shutil.copyfile(apk_src, dst_apk_path)
         exec_result = cls._apply_cmd(device_list, "install", "-r", "-d", "-t", dst_apk_path)
-        logging.info(exec_result)
+        logging.debug(exec_result)
+        return exec_result
 
     @classmethod
     @action_wrapper
@@ -424,7 +438,7 @@ class CmdHandler(object):
     # 获取可用设备
     def get_devices(self):
         result = DeviceHandler._update_device_status()
-        print(result)
+        standard_print(result)
 
     # 执行自定义adb命令
     def exec_cmd(self, device, cmd, shell):
