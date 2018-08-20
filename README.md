@@ -1,4 +1,4 @@
-# AndroidQube
+# AQube_Core
 
 [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/16251.svg)](https://scan.coverity.com/projects/williamfzc-androidqube)
 

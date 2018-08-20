@@ -13,6 +13,12 @@ import os
 
 
 def action_wrapper(func):
+    """
+    输出的规范化，打印输出
+
+    :param func:
+    :return:
+    """
     @functools.wraps(func)
     def wrap(cls, device_list, *args, **kwargs):
         device_list = cls._filter_device_list(device_list)
