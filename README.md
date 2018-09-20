@@ -4,6 +4,12 @@
 
 > 一个能够批量对android设备进行操作的软件，基于Python3。
 
+## 安装
+
+```python
+python3 -m AQube_Core xxx
+```
+
 ## 使用场景
 
 - 在多台设备连接到同一台电脑上时对他们进行批量操作。
