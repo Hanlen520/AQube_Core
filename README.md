@@ -7,6 +7,7 @@
 ## 安装
 
 ```python
+pip install aqube
 python3 -m AQube_Core xxx
 ```
 
